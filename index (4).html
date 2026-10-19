@@ -1,0 +1,233 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+  <meta name="theme-color" content="#101827">
+  <title>КотоГонки</title>
+  <style>
+    * { box-sizing: border-box; }
+    html, body { margin: 0; width: 100%; height: 100%; overflow: hidden; background: #101827; color: #fff; font-family: system-ui, -apple-system, Segoe UI, sans-serif; touch-action: none; }
+    body { display: flex; align-items: center; justify-content: center; }
+    #game { position: relative; width: min(100vw, 56.25vh); height: min(100vh, 177.78vw); max-width: 480px; max-height: 854px; overflow: hidden; background: #172334; }
+    canvas { display: block; width: 100%; height: 100%; }
+    .screen { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 22px; background: linear-gradient(180deg, rgba(13,21,35,.80), rgba(13,21,35,.94)); text-align: center; }
+    .hidden { display: none !important; }
+    h1 { margin: 0 0 5px; color: #ffe66d; font-size: clamp(32px, 9vw, 48px); line-height: 1; text-shadow: 0 4px 0 #aa602f; }
+    .subtitle { margin: 0 0 16px; color: #d8e2f0; font-size: 14px; }
+    h2 { font-size: 17px; margin: 12px 0 8px; color: #fff; }
+    .choices { display: flex; justify-content: center; gap: 9px; width: 100%; }
+    .choice { flex: 1; min-width: 0; max-width: 145px; padding: 10px 6px; border: 2px solid #53647a; border-radius: 14px; color: #fff; background: #26364b; font: inherit; cursor: pointer; }
+    .choice.selected { border-color: #ffe66d; background: #42526a; box-shadow: 0 0 0 2px rgba(255,230,109,.2); }
+    .choice .icon { display: block; font-size: 29px; line-height: 1.25; }
+    .choice small { display: block; margin-top: 3px; font-size: 11px; }
+    .main-btn { margin-top: 18px; width: min(100%, 280px); border: 0; border-radius: 15px; padding: 14px 20px; background: #ffe66d; color: #172334; font: 800 18px system-ui, sans-serif; box-shadow: 0 5px 0 #c58d3b; cursor: pointer; }
+    .main-btn:active { transform: translateY(3px); box-shadow: 0 2px 0 #c58d3b; }
+    .hint { margin-top: 12px; color: #bdc9d8; font-size: 12px; line-height: 1.5; }
+    #hud { position: absolute; z-index: 2; top: max(12px, env(safe-area-inset-top)); left: 12px; right: 12px; display: flex; justify-content: space-between; align-items: flex-start; pointer-events: none; font-weight: 800; text-shadow: 0 2px 3px #111; }
+    .hudbox { padding: 7px 10px; border-radius: 10px; background: rgba(12,20,32,.72); font-size: 13px; }
+    #message { position: absolute; z-index: 3; top: 28%; width: 100%; text-align: center; font-size: 24px; font-weight: 900; color: #ffe66d; text-shadow: 0 3px 5px #111; pointer-events: none; }
+    #controls { position: absolute; z-index: 2; left: 0; right: 0; bottom: max(20px, env(safe-area-inset-bottom)); display: flex; justify-content: space-between; padding: 0 22px; pointer-events: none; }
+    .steer { width: 76px; height: 68px; border: 2px solid rgba(255,255,255,.55); border-radius: 18px; background: rgba(15,24,38,.58); color: #fff; font-size: 32px; font-weight: 900; pointer-events: auto; touch-action: none; }
+    .steer:active { background: rgba(255,230,109,.45); }
+    #finishScreen { background: rgba(13,21,35,.90); }
+    .result { font-size: 18px; line-height: 1.55; color: #e4edf8; }
+  </style>
+</head>
+<body>
+  <main id="game">
+    <canvas id="canvas" aria-label="Игра КотоГонки"></canvas>
+    <div id="hud" class="hidden"><div class="hudbox" id="trackLabel">Трасса</div><div class="hudbox" id="stats">🏁 0% · ⭐ 0</div></div>
+    <div id="message"></div>
+    <div id="controls" class="hidden"><button class="steer" id="left" aria-label="Влево">◀</button><button class="steer" id="right" aria-label="Вправо">▶</button></div>
+
+    <section id="menu" class="screen">
+      <h1>🐾 КотоГонки</h1>
+      <p class="subtitle">Обгони соперников и не задень препятствия!</p>
+      <h2>Выбери трассу</h2>
+      <div class="choices" id="tracks">
+        <button class="choice selected" data-track="city"><span class="icon">🏙️</span><b>Город</b><small>Неоновые улицы</small></button>
+        <button class="choice" data-track="forest"><span class="icon">🌲</span><b>Лес</b><small>Лесное шоссе</small></button>
+      </div>
+      <h2>Выбери кота-гонщика</h2>
+      <div class="choices" id="cats">
+        <button class="choice selected" data-cat="🐱"><span class="icon">🐱</span><b>Пушок</b><small>Ловкий пилот</small></button>
+        <button class="choice" data-cat="😺"><span class="icon">😺</span><b>Рыжик</b><small>Смелый гонщик</small></button>
+        <button class="choice" data-cat="😼"><span class="icon">😼</span><b>Тень</b><small>Король виражей</small></button>
+      </div>
+      <button class="main-btn" id="start">НА СТАРТ!</button>
+      <div class="hint">Управление: кнопки ◀ ▶ или клавиши ← →<br>На телефоне нажимай кнопки или веди пальцем по экрану</div>
+    </section>
+
+    <section id="finishScreen" class="screen hidden">
+      <h1 id="finishTitle">Финиш!</h1>
+      <p class="result" id="resultText"></p>
+      <button class="main-btn" id="again">ЕЩЁ ЗАЕЗД</button>
+      <button class="main-btn" id="home" style="margin-top:12px;background:#dce7f5;box-shadow:0 5px 0 #8a9caf">В МЕНЮ</button>
+    </section>
+  </main>
+<script>
+(() => {
+  'use strict';
+  const canvas = document.getElementById('canvas');
+  const ctx = canvas.getContext('2d');
+  const menu = document.getElementById('menu');
+  const finishScreen = document.getElementById('finishScreen');
+  const hud = document.getElementById('hud');
+  const controls = document.getElementById('controls');
+  const message = document.getElementById('message');
+  const W = 390, H = 700;
+  const laneCenters = [130, 195, 260];
+  const catNames = {'🐱':'Пушок', '😺':'Рыжик', '😼':'Тень'};
+  let selectedTrack = 'city', selectedCat = '🐱';
+  let state = 'menu', playerX = 195, objects = [], roadOffset = 0;
+  let elapsed = 0, distance = 0, passed = 0, hits = 0, spawnTimer = 0, invulnerable = 0, steerDir = 0;
+  let lastTime = 0, touchStartX = null;
+  const raceLength = 900;
+  const trackNames = {city:'🏙️ Город', forest:'🌲 Лес'};
+  const palettes = {
+    city: {grass:'#27384d', road:'#424957', edge:'#d9d9e0', scenery:'#536a81', accent:'#6ee7ff'},
+    forest: {grass:'#244c37', road:'#42483f', edge:'#d7d1a0', scenery:'#34724c', accent:'#ffd66e'}
+  };
+
+  function resize() {
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    canvas.width = Math.round(W * dpr); canvas.height = Math.round(H * dpr);
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  }
+  window.addEventListener('resize', resize); resize();
+
+  document.querySelectorAll('#tracks .choice').forEach(btn => btn.addEventListener('click', () => {
+    document.querySelectorAll('#tracks .choice').forEach(x => x.classList.remove('selected'));
+    btn.classList.add('selected'); selectedTrack = btn.dataset.track;
+  }));
+  document.querySelectorAll('#cats .choice').forEach(btn => btn.addEventListener('click', () => {
+    document.querySelectorAll('#cats .choice').forEach(x => x.classList.remove('selected'));
+    btn.classList.add('selected'); selectedCat = btn.dataset.cat;
+  }));
+  document.getElementById('start').addEventListener('click', startRace);
+  document.getElementById('again').addEventListener('click', startRace);
+  document.getElementById('home').addEventListener('click', showMenu);
+
+  function startRace() {
+    state = 'race'; playerX = laneCenters[1]; objects = []; elapsed = distance = passed = hits = spawnTimer = roadOffset = invulnerable = 0;
+    menu.classList.add('hidden'); finishScreen.classList.add('hidden'); hud.classList.remove('hidden'); controls.classList.remove('hidden');
+    document.getElementById('trackLabel').textContent = trackNames[selectedTrack];
+    message.textContent = '3';
+    let count = 3;
+    const timer = setInterval(() => { count--; message.textContent = count > 0 ? String(count) : 'СТАРТ!'; if (count <= 0) { clearInterval(timer); setTimeout(() => { if (state === 'race') message.textContent = ''; }, 650); } }, 600);
+    lastTime = performance.now();
+  }
+  function showMenu() {
+    state = 'menu'; menu.classList.remove('hidden'); finishScreen.classList.add('hidden'); hud.classList.add('hidden'); controls.classList.add('hidden'); message.textContent = '';
+  }
+  function endRace() {
+    state = 'finish'; hud.classList.add('hidden'); controls.classList.add('hidden'); finishScreen.classList.remove('hidden'); message.textContent = '';
+    document.getElementById('finishTitle').textContent = passed >= 5 ? 'Победа! 🏆' : 'Финиш! 🏁';
+    document.getElementById('resultText').innerHTML = `Гонщик: <b>${catNames[selectedCat]}</b><br>Трасса: <b>${trackNames[selectedTrack].slice(3)}</b><br>Обогнано соперников: <b>${passed}</b><br>Столкновений: <b>${hits}</b>`;
+  }
+
+  function setSteer(dir, on) { if (on) steerDir = dir; else if (steerDir === dir) steerDir = 0; }
+  for (const [id, dir] of [['left',-1], ['right',1]]) {
+    const b = document.getElementById(id);
+    b.addEventListener('pointerdown', e => { e.preventDefault(); b.setPointerCapture(e.pointerId); setSteer(dir, true); });
+    b.addEventListener('pointerup', () => setSteer(dir, false));
+    b.addEventListener('pointercancel', () => setSteer(dir, false));
+  }
+  window.addEventListener('keydown', e => { if (e.key === 'ArrowLeft' || e.key === 'a') steerDir = -1; if (e.key === 'ArrowRight' || e.key === 'd') steerDir = 1; });
+  window.addEventListener('keyup', e => { if (['ArrowLeft','a'].includes(e.key) && steerDir === -1) steerDir = 0; if (['ArrowRight','d'].includes(e.key) && steerDir === 1) steerDir = 0; });
+  canvas.addEventListener('pointerdown', e => { touchStartX = e.clientX; });
+  canvas.addEventListener('pointermove', e => { if (touchStartX !== null && state === 'race') { const delta = e.clientX - touchStartX; steerDir = Math.abs(delta) < 8 ? 0 : (delta < 0 ? -1 : 1); } });
+  canvas.addEventListener('pointerup', () => { touchStartX = null; steerDir = 0; });
+  canvas.addEventListener('pointercancel', () => { touchStartX = null; steerDir = 0; });
+
+  function spawnObject() {
+    const lane = Math.floor(Math.random() * 3);
+    const rival = Math.random() < 0.48;
+    objects.push({lane, y:-100, type:rival ? 'rival' : 'obstacle', color:['#ff5964','#58c4f6','#b77cff','#ffb84d'][Math.floor(Math.random()*4)], cat:['🐈','😸','🐯'][Math.floor(Math.random()*3)], checked:false});
+  }
+  function update(dt) {
+    if (state !== 'race') return;
+    elapsed += dt; distance = Math.min(raceLength, distance + 15 * dt);
+    roadOffset = (roadOffset + 230 * dt) % 80;
+    playerX += steerDir * 250 * dt;
+    playerX = Math.max(100, Math.min(290, playerX));
+    if (invulnerable > 0) invulnerable -= dt;
+    spawnTimer -= dt;
+    if (spawnTimer <= 0) { spawnObject(); spawnTimer = 0.72 + Math.random() * 0.48; }
+    for (const ob of objects) {
+      ob.y += (ob.type === 'rival' ? 230 : 255) * dt;
+      if (!ob.checked && ob.y > 530 && ob.y < 610 && Math.abs(laneCenters[ob.lane] - playerX) < 38) {
+        ob.checked = true;
+        if (ob.type === 'rival') passed++;
+        else if (invulnerable <= 0) { hits++; invulnerable = 1.15; message.textContent = 'ОЙ!'; setTimeout(() => { if (state === 'race' && message.textContent === 'ОЙ!') message.textContent = ''; }, 450); }
+      }
+    }
+    objects = objects.filter(o => o.y < H + 100);
+    document.getElementById('stats').textContent = `🏁 ${Math.floor(distance/raceLength*100)}% · ⭐ ${passed}`;
+    if (distance >= raceLength) endRace();
+  }
+
+  function roundRect(x,y,w,h,r,fill) {
+    ctx.fillStyle = fill; ctx.beginPath(); ctx.roundRect(x,y,w,h,r); ctx.fill();
+  }
+  function drawCar(x,y,color,cat,isPlayer=false) {
+    // Car body, windshield, wheels and cat driver.
+    ctx.save(); ctx.translate(x,y);
+    ctx.fillStyle = 'rgba(0,0,0,.25)'; ctx.beginPath(); ctx.ellipse(0,31,31,10,0,0,Math.PI*2); ctx.fill();
+    roundRect(-29,-31,10,24,4,'#171a20'); roundRect(19,-31,10,24,4,'#171a20');
+    roundRect(-29,12,10,24,4,'#171a20'); roundRect(19,12,10,24,4,'#171a20');
+    roundRect(-24,-39,48,78,12,color);
+    roundRect(-17,-24,34,24,7,'#bfeaff');
+    roundRect(-17,8,34,18,6,'#25394d');
+    ctx.fillStyle = '#fff5b9'; ctx.fillRect(-19,-37,10,5); ctx.fillRect(9,-37,10,5);
+    ctx.fillStyle = '#ff455c'; ctx.fillRect(-19,32,10,4); ctx.fillRect(9,32,10,4);
+    ctx.font = '25px system-ui, sans-serif'; ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.fillText(cat,0,-8);
+    if (isPlayer) { ctx.strokeStyle='#ffe66d'; ctx.lineWidth=3; ctx.beginPath(); ctx.roundRect(-27,-42,54,84,13); ctx.stroke(); }
+    ctx.restore();
+  }
+  function drawBackground() {
+    const p = palettes[selectedTrack];
+    ctx.fillStyle = p.grass; ctx.fillRect(0,0,W,H);
+    // roadside scenery stripes
+    for (let y = -80 + roadOffset; y < H; y += 80) {
+      if (selectedTrack === 'forest') {
+        for (const x of [28, 358]) { ctx.fillStyle=p.scenery; ctx.beginPath(); ctx.moveTo(x,y+40); ctx.lineTo(x-18,y+5); ctx.lineTo(x+18,y+5); ctx.closePath(); ctx.fill(); ctx.fillRect(x-4,y+38,8,13); }
+      } else {
+        ctx.fillStyle = '#35475d'; ctx.fillRect(8,y+8,25,40); ctx.fillRect(357,y+22,24,48);
+        ctx.fillStyle = p.accent; ctx.fillRect(14,y+16,4,4); ctx.fillRect(23,y+28,4,4); ctx.fillRect(363,y+32,4,4);
+      }
+    }
+    ctx.fillStyle = p.road; ctx.fillRect(90,0,210,H);
+    ctx.fillStyle = p.edge; ctx.fillRect(90,0,7,H); ctx.fillRect(293,0,7,H);
+    ctx.fillStyle = 'rgba(255,255,255,.65)';
+    for (let y=-50+roadOffset; y<H; y+=80) { ctx.fillRect(161,y,4,42); ctx.fillRect(226,y,4,42); }
+    // Roadside dashed markers
+    ctx.fillStyle = selectedTrack === 'city' ? '#ffcb55' : '#f1e4a2';
+    for (let y=-40+roadOffset; y<H; y+=80) { ctx.fillRect(82,y,5,35); ctx.fillRect(303,y,5,35); }
+  }
+  function draw() {
+    drawBackground();
+    if (state === 'race' || state === 'finish') {
+      for (const ob of objects) {
+        if (ob.type === 'rival') drawCar(laneCenters[ob.lane], ob.y, ob.color, ob.cat, false);
+        else {
+          // Cones / road blocks
+          ctx.save(); ctx.translate(laneCenters[ob.lane], ob.y);
+          ctx.fillStyle='rgba(0,0,0,.25)'; ctx.beginPath(); ctx.ellipse(0,17,22,7,0,0,Math.PI*2); ctx.fill();
+          ctx.fillStyle='#ff843d'; ctx.beginPath(); ctx.moveTo(0,-22); ctx.lineTo(19,16); ctx.lineTo(-19,16); ctx.closePath(); ctx.fill();
+          ctx.fillStyle='#fff'; ctx.fillRect(-11,1,22,5); ctx.restore();
+        }
+      }
+      if (state === 'race' && (invulnerable <= 0 || Math.floor(elapsed*12)%2===0)) drawCar(playerX,560,'#32c982',selectedCat,true);
+    }
+  }
+  function frame(now) {
+    const dt = Math.min((now - (lastTime || now))/1000, 0.04); lastTime = now;
+    update(dt); draw(); requestAnimationFrame(frame);
+  }
+  requestAnimationFrame(frame);
+})();
+</script>
+</body>
+</html>
